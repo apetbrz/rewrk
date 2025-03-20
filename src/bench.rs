@@ -47,6 +47,9 @@ pub struct BenchmarkSettings {
 
     /// Request body.
     pub body: Bytes,
+
+    /// Print incoming replies to stdout (experimental).
+    pub print_replies: bool,
 }
 
 /// Builds the runtime with the given settings and blocks on the main future.
@@ -93,6 +96,7 @@ async fn run(settings: BenchmarkSettings) -> Result<()> {
         settings.method,
         settings.headers,
         settings.body,
+        settings.print_replies,
         predict_size as usize,
     )
     .await;

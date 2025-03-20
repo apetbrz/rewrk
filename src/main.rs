@@ -75,6 +75,8 @@ fn main() {
 
     let pct: bool = args.is_present("pct");
 
+    let prt: bool = (&args).is_present("prt");
+
     let rounds: usize = args
         .value_of("rounds")
         .unwrap_or("1")
@@ -121,6 +123,7 @@ fn main() {
         method,
         headers,
         body,
+        print_replies: prt
     };
 
     bench::start_benchmark(settings);
@@ -230,6 +233,13 @@ fn parse_args() -> ArgMatches<'static> {
             Arg::with_name("pct")
                 .long("pct")
                 .help("Displays the percentile table after benchmarking.")
+                .takes_value(false)
+                .required(false),
+        )
+        .arg(
+            Arg::with_name("prt")
+                .long("prt")
+                .help("Prints HTTP request body to stdout during benchmarking (experimental).")
                 .takes_value(false)
                 .required(false),
         )

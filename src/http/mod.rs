@@ -55,11 +55,12 @@ pub async fn start_tasks(
     method: Method,
     headers: HeaderMap,
     body: Bytes,
+    print_replies: bool,
     _predicted_size: usize,
 ) -> anyhow::Result<FuturesUnordered<Handle>> {
     let deadline = Instant::now() + time_for;
     let user_input =
-        UserInput::new(bench_type, uri_string, method, headers, body).await?;
+        UserInput::new(bench_type, uri_string, method, headers, body, print_replies).await?;
 
     let handles = FuturesUnordered::new();
 
@@ -105,6 +106,8 @@ async fn benchmark(
     let mut request_times = Vec::new();
     let mut error_map = HashMap::new();
 
+    let print_replies = user_input.print_replies;
+
     // Benchmark loop.
     // Futures must not be awaited without timeout.
     loop {
@@ -134,7 +137,21 @@ async fn benchmark(
                         Err(e) => Err::<_, anyhow::Error>(anyhow::Error::new(e)),
                     }
                 },
-                result = future => result.map(|_| ()).map_err(Into::into),
+                result = future => {
+                    if print_replies {
+                        let bytes = result.iter().next().clone();
+                        let output = bytes
+                        .map(Bytes::clone)
+                        .map(|v| {
+                            String::from_utf8(v.to_vec())
+                            .unwrap_or("invalid utf8 in response".into())
+                            .clone()
+                        });
+                        
+                        println!("{}", output.unwrap_or("response body error!?".into()));
+                    }
+                    result.map(|_| ()).map_err(Into::into)
+                },
             }
         };
 
