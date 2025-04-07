@@ -64,8 +64,8 @@ pub async fn start_tasks(
 
     let handles = FuturesUnordered::new();
 
-    for _ in 0..connections {
-        let handle = tokio::spawn(benchmark(deadline, bench_type, user_input.clone()));
+    for n in 0..connections {
+        let handle = tokio::spawn(benchmark(deadline, bench_type, user_input.clone(), n));
 
         handles.push(handle);
     }
@@ -78,6 +78,7 @@ async fn benchmark(
     deadline: Instant,
     bench_type: BenchType,
     user_input: UserInput,
+    connection_id: usize,
 ) -> anyhow::Result<WorkerResult> {
     let benchmark_start = Instant::now();
     let connector = RewrkConnector::new(
@@ -102,6 +103,8 @@ async fn benchmark(
     }
 
     request_headers.extend(user_input.headers);
+
+    request_headers.insert::<&str>("X-Connection-Id", connection_id.into());
 
     let mut request_times = Vec::new();
     let mut error_map = HashMap::new();
