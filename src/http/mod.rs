@@ -56,11 +56,12 @@ pub async fn start_tasks(
     headers: HeaderMap,
     body: Bytes,
     print_replies: bool,
+    connection_ids: bool,
     _predicted_size: usize,
 ) -> anyhow::Result<FuturesUnordered<Handle>> {
     let deadline = Instant::now() + time_for;
     let user_input =
-        UserInput::new(bench_type, uri_string, method, headers, body, print_replies).await?;
+        UserInput::new(bench_type, uri_string, method, headers, body, print_replies, connection_ids).await?;
 
     let handles = FuturesUnordered::new();
 
@@ -88,6 +89,7 @@ async fn benchmark(
         user_input.scheme,
         user_input.host,
     );
+    let response_prefix = format!("connection {}: ", connection_id);
 
     let (mut send_request, mut connection_task) =
         match timeout_at(deadline, connector.connect()).await {
@@ -104,7 +106,9 @@ async fn benchmark(
 
     request_headers.extend(user_input.headers);
 
-    request_headers.insert::<&str>("X-Connection-Id", connection_id.into());
+    if user_input.connection_ids {
+        request_headers.insert::<&str>("X-Connection-Id", connection_id.into());
+    }
 
     let mut request_times = Vec::new();
     let mut error_map = HashMap::new();
@@ -141,28 +145,23 @@ async fn benchmark(
                     }
                 },
                 result = future => {
-                    if print_replies {
-                        let bytes = result.iter().next().clone();
-                        let output = bytes
-                        .map(Bytes::clone)
-                        .map(|v| {
-                            String::from_utf8(v.to_vec())
-                            .unwrap_or("invalid utf8 in response".into())
-                            .clone()
-                        });
-                        
-                        println!("{}", output.unwrap_or("response body error!?".into()));
-                    }
-                    result.map(|_| ()).map_err(Into::into)
+                    result.map_err(Into::into)
                 },
             }
+        };
+
+        let response_body_map = if print_replies {
+            |x: Bytes| Some(x)
+        }
+        else {
+            |_| None
         };
 
         let request_start = Instant::now();
 
         // Try to resolve future before benchmark deadline is elapsed.
-        if let Ok(result) = timeout_at(deadline, future).await {
-            if let Err(e) = result {
+        let bytes = if let Ok(result) = timeout_at(deadline, future).await {
+            if let Err(ref e) = result {
                 let error = e.to_string();
 
                 // Insert/add error string to error log.
@@ -182,12 +181,23 @@ async fn benchmark(
                     Err(_elapsed) => break,
                 };
             }
+            result.map(response_body_map).map_err(|_| ())
         } else {
             // Benchmark deadline is elapsed. Break the loop.
             break;
-        }
+        };
 
         request_times.push(request_start.elapsed());
+
+        if print_replies {
+            let output = bytes
+            .map(|v| {
+                String::from_utf8(v.expect("bytes==None despite print_replies==true!").to_vec())
+                .unwrap_or("invalid utf8 in response".into())
+                .clone()
+            });
+            println!("{}{}", response_prefix, output.unwrap_or("response body error!?".into()));
+        }
     }
 
     Ok(WorkerResult {

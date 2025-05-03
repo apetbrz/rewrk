@@ -77,6 +77,8 @@ fn main() {
 
     let prt: bool = (&args).is_present("prt");
 
+    let ids: bool = (&args).is_present("connection-ids");
+
     let rounds: usize = args
         .value_of("rounds")
         .unwrap_or("1")
@@ -123,7 +125,8 @@ fn main() {
         method,
         headers,
         body,
-        print_replies: prt
+        print_replies: prt,
+        connection_ids: ids
     };
 
     bench::start_benchmark(settings);
@@ -242,6 +245,14 @@ fn parse_args() -> ArgMatches<'static> {
                 .help("Prints HTTP request body to stdout during benchmarking (experimental).")
                 .takes_value(false)
                 .required(false),
+        )
+        .arg(
+            Arg::with_name("connection-ids")
+                .long("connection-ids")
+                .short("i")
+                .help("Gives each connection a X-Connection-Id HTTP header, identifying it.")
+                .takes_value(false)
+                .required(false)
         )
         .arg(
             Arg::with_name("json")

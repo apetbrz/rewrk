@@ -50,6 +50,9 @@ pub struct BenchmarkSettings {
 
     /// Print incoming replies to stdout (experimental).
     pub print_replies: bool,
+
+    /// Give each connection a unique (reusable) X-Connection-Id HTTP header
+    pub connection_ids: bool,
 }
 
 /// Builds the runtime with the given settings and blocks on the main future.
@@ -97,6 +100,7 @@ async fn run(settings: BenchmarkSettings) -> Result<()> {
         settings.headers,
         settings.body,
         settings.print_replies,
+        settings.connection_ids,
         predict_size as usize,
     )
     .await;

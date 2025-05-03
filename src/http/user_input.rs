@@ -36,7 +36,8 @@ pub(crate) struct UserInput {
     pub(crate) method: Method,
     pub(crate) headers: HeaderMap,
     pub(crate) body: Bytes,
-    pub(crate) print_replies: bool
+    pub(crate) print_replies: bool,
+    pub(crate) connection_ids: bool
 }
 
 impl UserInput {
@@ -47,9 +48,10 @@ impl UserInput {
         headers: HeaderMap,
         body: Bytes,
         print_replies: bool,
+        connection_ids: bool
     ) -> Result<Self> {
         spawn_blocking(move || {
-            Self::blocking_new(protocol, string, method, headers, body, print_replies)
+            Self::blocking_new(protocol, string, method, headers, body, print_replies, connection_ids)
         })
         .await
         .unwrap()
@@ -62,6 +64,7 @@ impl UserInput {
         headers: HeaderMap,
         body: Bytes,
         print_replies: bool,
+        connection_ids: bool,
     ) -> Result<Self> {
         let uri = Uri::try_from(string)?;
         let scheme = uri
@@ -116,7 +119,8 @@ impl UserInput {
             method,
             headers,
             body,
-            print_replies
+            print_replies,
+            connection_ids
         })
     }
 }
